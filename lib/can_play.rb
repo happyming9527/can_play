@@ -5,8 +5,8 @@ require 'modularity'
 
 module CanPlay
   mattr_accessor :resources, :override_resources, :override_code
-  self.override_code = nil
-  self.resources = []
+  self.override_code      = nil
+  self.resources          = []
   self.override_resources = {}.with_indifferent_access
 
   class << self
@@ -21,20 +21,21 @@ module CanPlay
     end
 
     def find_by_name_and_code(name, code)
-      resource = CanPlay.override_resources[code].p2a.find { |r| r.name.to_s == name.to_s}
-      resource || CanPlay.resources.find { |r| r.name.to_s == name.to_s}
+      resource = CanPlay.override_resources[code].p2a.find { |r| r.name.to_s == name.to_s }
+      resource || CanPlay.resources.find { |r| r.name.to_s == name.to_s }
+    end
+
+    def conjunct_resources
+      resources = CanPlay.override_resources[CanPlay.override_code].p2a + CanPlay.resources
+      resources.uniq { |i| i.name }
     end
 
     def grouped_resources
-      @grouped_resources ||= CanPlay.resources.multi_group_by(:module_name, :group)
+      conjunct_resources.multi_group_by :module_name, :group
     end
 
     def splat_grouped_resources
-      @grouped_resources ||= CanPlay.resources.multi_group_by(:group)
-    end
-
-    def my_resources
-      CanPlay.resources
+      conjunct_resources.multi_group_by :group
     end
 
     def grouped_resources_with_chinese_desc
@@ -59,8 +60,8 @@ module CanPlay
       splat_grouped_resources.tap do |i|
         i.each do |group, resources|
           group[:chinese_desc] = begin
-            name = I18n.t("can_play.class_name.#{group[:name].singularize}", default: '')
-            name = group[:klass].model_name.human if name.blank?
+            name = I18n.t("can_play.class_name.#{group.name.singularize}", default: '')
+            name = group.klass.model_name.human if name.blank?
             name
           end
           resources.each do |resource|
@@ -74,11 +75,11 @@ module CanPlay
 
   module Config
     mattr_accessor :user_class_name, :role_class_name, :role_resources_relation_name, :super_roles, :role_judge_method
-    self.user_class_name = 'User'
-    self.role_class_name = 'Role'
+    self.user_class_name              = 'User'
+    self.role_class_name              = 'Role'
     self.role_resources_relation_name = 'role_resources'
-    self.super_roles = []
-    self.role_judge_method = 'role?'
+    self.super_roles                  = []
+    self.role_judge_method            = 'role?'
 
     def self.setup
       yield self
@@ -87,14 +88,20 @@ module CanPlay
 
   module ClassMethods
 
+    class NameImportantOpenStruct < OpenStruct
+      def eql?(another)
+        self.name == another.name
+      end
+    end
+
     # 为每个 resource 添加一个 group, 方便管理
     def group(opts, &block)
       if opts.is_a?(Hash)
         opts  = opts.with_indifferent_access
-        group =  OpenStruct.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass))
+        group = NameImportantOpenStruct.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass))
       elsif opts.is_a?(Module)
-        name = opts.try(:table_name).presence || opts.to_s.underscore.gsub('/', '_').pluralize
-        group =  OpenStruct.new(name: name, klass: opts)
+        name  = opts.try(:table_name).presence || opts.to_s.underscore.gsub('/', '_').pluralize
+        group = NameImportantOpenStruct.new(name: name, klass: opts)
       else
         # do nothing
       end
@@ -110,7 +117,7 @@ module CanPlay
       CanPlay::Power.power(name||current_group.name, &block)
     end
 
-    def collection(verb_or_verbs, &block)
+    def collection(verb_or_verbs, opts={}.with_indifferent_access, &block)
       raise "Need define group first" if current_group.nil?
       group    = current_group
       behavior = nil
@@ -125,14 +132,14 @@ module CanPlay
 
       if verb_or_verbs.kind_of?(Array)
         verb_or_verbs.each do |verb|
-          add_resource(group, verb, group.klass, 'collection', behavior)
+          add_resource(group, verb, group.klass, 'collection', behavior, opts)
         end
       else
-        add_resource(group, verb_or_verbs, group.klass, 'collection', behavior)
+        add_resource(group, verb_or_verbs, group.klass, 'collection', behavior, opts)
       end
     end
 
-    def member(verb_or_verbs, &block)
+    def member(verb_or_verbs, opts={}.with_indifferent_access, &block)
       raise "Need define group first" if current_group.nil?
       group    = current_group
       behavior = nil
@@ -147,23 +154,24 @@ module CanPlay
 
       if verb_or_verbs.kind_of?(Array)
         verb_or_verbs.each do |verb|
-          add_resource(group, verb, group.klass, 'member', behavior)
+          add_resource(group, verb, group.klass, 'member', behavior, opts)
         end
       else
-        add_resource(group, verb_or_verbs, group.klass, 'member', behavior)
+        add_resource(group, verb_or_verbs, group.klass, 'member', behavior, opts)
       end
     end
 
-    def add_resource(group, verb, object, type, behavior)
+    def add_resource(group, verb, object, type, behavior, opts)
       name     = "#{verb}_#{group.name}"
       resource = OpenStruct.new(
         module_name: module_name,
-        name:     name,
-        group:    group,
-        verb:     verb,
-        object:   object,
-        type:     type,
-        behavior: behavior
+        name:        name,
+        group:       group,
+        verb:        verb,
+        object:      object,
+        type:        type,
+        behavior:    behavior,
+        opts:        opts
       )
       CanPlay.resources.keep_if { |i| i.name != name }
       CanPlay.resources << resource
@@ -176,26 +184,27 @@ module CanPlay
       singleton_attr_accessor(:groups, :current_group, :module_name)
       self.groups        = []
       self.current_group = nil
-      self.module_name = ''
+      self.module_name   = ''
 
       define_singleton_method(:limit) do |name=nil, &block|
         raise "Need define group first" if current_group.nil?
-        method_name = name ? "#{name}_evaluate_in_#{code}_scope":"#{current_group.name}_evaluate_in_#{code}_scope"
+        method_name = name ? "#{name}_evaluate_in_#{code}_scope" : "#{current_group.name}_evaluate_in_#{code}_scope"
         Power.power(method_name, &block)
       end
 
-      define_singleton_method(:add_resource) do |group, verb, object, type, behavior|
-        super(group, verb, object, type, behavior) and return if code.blank?
+      define_singleton_method(:add_resource) do |group, verb, object, type, behavior, opts|
+        super(group, verb, object, type, behavior, opts) and return if code.blank?
         CanPlay.override_resources[code] ||= []
-        name     = "#{verb}_#{group.name}"
-        resource = OpenStruct.new(
+        name                             = "#{verb}_#{group.name}"
+        resource                         = OpenStruct.new(
           module_name: module_name,
-          name:     name,
-          group:    group,
-          verb:     verb,
-          object:   object,
-          type:     type,
-          behavior: behavior
+          name:        name,
+          group:       group,
+          verb:        verb,
+          object:      object,
+          type:        type,
+          behavior:    behavior,
+          opts:        opts
         )
         CanPlay.override_resources[code].keep_if { |i| i.name != name }
         CanPlay.override_resources[code] << resource
