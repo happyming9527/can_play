@@ -13,4 +13,7 @@ CanPlay::Config.setup do |config|
 
   # super_roles表示无需分配权限既可拥有所有权限的角色。
   config.super_roles = ['超级管理员']
+
+  # 判断角色是否符合的方法。
+  config.role_judge_method = 'role?'
 end

@@ -24,4 +24,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'cancancan', "~> 1.12"
   spec.add_dependency 'consul', "~> 0.12"
   spec.add_dependency 'ror_hack', "~> 0.1 "
+  spec.add_dependency 'modularity', "~> 2.0 "
 end

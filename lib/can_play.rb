@@ -1,29 +1,28 @@
 require 'ror_hack'
 require 'consul'
 require 'cancancan'
-require "can_play/version"
-require "can_play/power"
-require "can_play/ability"
-require "can_play/controller"
+require 'modularity'
 
 module CanPlay
-  mattr_accessor :resources
-  @@resources = []
+  mattr_accessor :resources, :override_resources, :override_code
+  self.override_code = nil
+  self.resources = []
+  self.override_resources = {}.with_indifferent_access
 
   class << self
     def included(base)
       base.class_eval <<-RUBY
-        include RorHack::ClassLevelInheritableAttributes
-        inheritable_attributes(:groups, :current_group, :module_name)
-        @groups        = []
-        @current_group = nil
-        @module_name = ''
+        singleton_attr_accessor(:groups, :current_group, :module_name)
+        self.groups        = []
+        self.current_group = nil
+        self.module_name = ''
       RUBY
       base.extend ClassMethods
     end
 
-    def find_by_name(name)
-      CanPlay.resources.find { |r| r.name == name }
+    def find_by_name_and_code(name, code)
+      resource = CanPlay.override_resources[code].p2a.find { |r| r.name.to_s == name.to_s}
+      resource || CanPlay.resources.find { |r| r.name.to_s == name.to_s}
     end
 
     def grouped_resources
@@ -74,18 +73,17 @@ module CanPlay
   end
 
   module Config
-    mattr_accessor :user_class_name, :role_class_name, :role_resources_relation_name, :super_roles
-    @@user_class_name = 'User'
-    @@role_class_name = 'Role'
-    @@role_resources_relation_name = 'role_resources'
-    @@super_roles = []
+    mattr_accessor :user_class_name, :role_class_name, :role_resources_relation_name, :super_roles, :role_judge_method
+    self.user_class_name = 'User'
+    self.role_class_name = 'Role'
+    self.role_resources_relation_name = 'role_resources'
+    self.super_roles = []
+    self.role_judge_method = 'role?'
 
     def self.setup
       yield self
     end
   end
-
-
 
   module ClassMethods
 
@@ -100,21 +98,21 @@ module CanPlay
       else
         # do nothing
       end
-      @groups << group
-      @groups        = @groups.uniq(&:name)
-      @current_group = group
+      self.groups << group
+      self.groups        = groups.uniq(&:name)
+      self.current_group = group
       block.call(group.klass)
-      @current_group = nil
+      self.current_group = nil
     end
 
     def limit(name=nil, &block)
-      raise "Need define group first" if @current_group.nil?
-      Power.power(name||@current_group.name, &block)
+      raise "Need define group first" if current_group.nil?
+      CanPlay::Power.power(name||current_group.name, &block)
     end
 
     def collection(verb_or_verbs, &block)
-      raise "Need define group first" if @current_group.nil?
-      group    = @current_group
+      raise "Need define group first" if current_group.nil?
+      group    = current_group
       behavior = nil
       if block
         behavior = lambda do |user|
@@ -135,8 +133,8 @@ module CanPlay
     end
 
     def member(verb_or_verbs, &block)
-      raise "Need define group first" if @current_group.nil?
-      group    = @current_group
+      raise "Need define group first" if current_group.nil?
+      group    = current_group
       behavior = nil
       if block
         behavior = lambda do |user, obj|
@@ -171,4 +169,41 @@ module CanPlay
       CanPlay.resources << resource
     end
   end
+
+  module Override
+    as_trait do |code|
+      extend ClassMethods
+      singleton_attr_accessor(:groups, :current_group, :module_name)
+      self.groups        = []
+      self.current_group = nil
+      self.module_name = ''
+
+      define_singleton_method(:limit) do |name=nil, &block|
+        raise "Need define group first" if current_group.nil?
+        method_name = name ? "#{name}_evaluate_in_#{code}_scope":"#{current_group.name}_evaluate_in_#{code}_scope"
+        Power.power(method_name, &block)
+      end
+
+      define_singleton_method(:add_resource) do |group, verb, object, type, behavior|
+        super(group, verb, object, type, behavior) and return if code.blank?
+        CanPlay.override_resources[code] ||= []
+        name     = "#{verb}_#{group.name}"
+        resource = OpenStruct.new(
+          module_name: module_name,
+          name:     name,
+          group:    group,
+          verb:     verb,
+          object:   object,
+          type:     type,
+          behavior: behavior
+        )
+        CanPlay.override_resources[code].keep_if { |i| i.name != name }
+        CanPlay.override_resources[code] << resource
+      end
+    end
+  end
 end
+
+require "can_play/power"
+require "can_play/controller"
+require "can_play/ability"
