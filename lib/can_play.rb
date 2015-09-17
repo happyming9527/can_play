@@ -25,21 +25,23 @@ module CanPlay
       resource || CanPlay.resources.find { |r| r.name.to_s == name.to_s }
     end
 
-    def conjunct_resources
+    def conjunct_resources(block=nil)
       resources = CanPlay.override_resources[CanPlay.override_code].p2a + CanPlay.resources
-      resources.uniq { |i| i.name }
+      resources = resources.uniq { |i| i.name }
+      resources = resources.select(&block) if block
+      resources
     end
 
-    def grouped_resources
-      conjunct_resources.multi_group_by :module_name, :group
+    def grouped_resources(block=nil)
+      conjunct_resources(block).multi_group_by(:module_name, :group)
     end
 
-    def splat_grouped_resources
-      conjunct_resources.multi_group_by :group
+    def splat_grouped_resources(block=nil)
+      conjunct_resources(block).multi_group_by(:group)
     end
 
-    def grouped_resources_with_chinese_desc
-      grouped_resources.tap do |e|
+    def grouped_resources_with_chinese_desc(&block)
+      grouped_resources(block).tap do |e|
         e.each do |i, v|
           v.each do |group, resources|
             group.chinese_desc = begin
@@ -56,8 +58,8 @@ module CanPlay
       end
     end
 
-    def splat_grouped_resources_with_chinese_desc
-      splat_grouped_resources.tap do |i|
+    def splat_grouped_resources_with_chinese_desc(&block)
+      splat_grouped_resources(block).tap do |i|
         i.each do |group, resources|
           group[:chinese_desc] = begin
             name = I18n.t("can_play.class_name.#{group.name.singularize}", default: '')
