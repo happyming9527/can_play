@@ -25,23 +25,23 @@ module CanPlay
       resource || CanPlay.resources.find { |r| r.name.to_s == name.to_s }
     end
 
-    def conjunct_resources(block=nil)
+    def conjunct_resources(&block)
       resources = CanPlay.override_resources[CanPlay.override_code].p2a + CanPlay.resources
       resources = resources.uniq { |i| i.name }
       resources = resources.select(&block) if block
       resources
     end
 
-    def grouped_resources(block=nil)
+    def grouped_resources(&block)
       conjunct_resources(block).multi_group_by(:module_name, :group)
     end
 
-    def splat_grouped_resources(block=nil)
-      conjunct_resources(block).multi_group_by(:group)
+    def splat_grouped_resources(&block)
+      conjunct_resources(&block).multi_group_by(:group)
     end
 
     def grouped_resources_with_chinese_desc(&block)
-      grouped_resources(block).tap do |e|
+      grouped_resources(&block).tap do |e|
         e.each do |i, v|
           v.each do |group, resources|
             group.chinese_desc = begin
@@ -59,7 +59,7 @@ module CanPlay
     end
 
     def splat_grouped_resources_with_chinese_desc(&block)
-      splat_grouped_resources(block).tap do |i|
+      splat_grouped_resources(&block).tap do |i|
         i.each do |group, resources|
           group[:chinese_desc] = begin
             name = I18n.t("can_play.class_name.#{group.name.singularize}", default: '')
@@ -97,16 +97,19 @@ module CanPlay
     end
 
     # 为每个 resource 添加一个 group, 方便管理
-    def group(opts, &block)
-      if opts.is_a?(Hash)
+    def group(*args, &block)
+      opts = args.extract_options!.with_indifferent_access
+      clazz = args.first
+      if clazz.is_a?(Module)
+        name  = clazz.try(:table_name).presence || clazz.to_s.underscore.gsub('/', '_').pluralize
+        group = NameImportantOpenStruct.new(name: name, klass: clazz)
+      elsif clazz.blank? &&  opts.key?(:name)
         opts  = opts.with_indifferent_access
         group = NameImportantOpenStruct.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass))
-      elsif opts.is_a?(Module)
-        name  = opts.try(:table_name).presence || opts.to_s.underscore.gsub('/', '_').pluralize
-        group = NameImportantOpenStruct.new(name: name, klass: opts)
       else
-        # do nothing
+        raise "group klass need set"
       end
+      group.opts = OpenStruct.new opts
       self.groups << group
       self.groups        = groups.uniq(&:name)
       self.current_group = group
@@ -119,8 +122,9 @@ module CanPlay
       CanPlay::Power.power(name||current_group.name, &block)
     end
 
-    def collection(verb_or_verbs, opts={}.with_indifferent_access, &block)
+    def collection(verb_or_verbs, opts={}, &block)
       raise "Need define group first" if current_group.nil?
+      opts = OpenStruct.new opts
       group    = current_group
       behavior = nil
       if block
@@ -141,8 +145,9 @@ module CanPlay
       end
     end
 
-    def member(verb_or_verbs, opts={}.with_indifferent_access, &block)
+    def member(verb_or_verbs, opts={}, &block)
       raise "Need define group first" if current_group.nil?
+      opts = OpenStruct.new opts
       group    = current_group
       behavior = nil
       if block
