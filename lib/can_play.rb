@@ -33,7 +33,7 @@ module CanPlay
     end
 
     def grouped_resources(&block)
-      conjunct_resources(block).multi_group_by(:module_name, :group)
+      conjunct_resources(&block).multi_group_by(:module_name, :group)
     end
 
     def splat_grouped_resources(&block)
