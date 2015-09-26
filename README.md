@@ -1,4 +1,14 @@
-系统权限的管理，就是控制用户对某个资源的操作权限。这里说的资源并不仅仅是指ActiveRecord::Base的子类，也可以是ruby的其他类或者模型。can_plan集成了cancancan和consul的功能，使用简单的DSL描述用户对单个资源或某类资源的操作权限。它的权限管理方式是基于角色的，不同角色可以赋予不同的权限，我们可以让用户和资源的操作权限之间建立关联并保存进数据库.
+can_plan集成了cancancan和consul的功能，使用简单的DSL描述用户对单个资源或某类资源的操作权限，可以完整控制用户对任何资源的访问权限。如要使用它，系统必须有用户模型，推荐使用角色模型，用户可以有多个角色，然后在角色上设置权限，让单个用户，根据角色不同获取不同权限，以下示例都会基于用户和角色的模型。
+
+![](http://7xn1q4.com1.z0.glb.clouddn.com/gem_can_play_role.png)
+
+其中角色表在通过RoleResources这样的中间表和资源管理的权限进行关联。
+![](http://7xn1q4.com1.z0.glb.clouddn.com/gem_can_play_role_resources.png)
+
+使用Resource表做权限，字段可以有action、resource这样的字段，action表示行为，例如'create'，resouce表示资源，可以是Order这样的类名。这样做当然够简单，但是主要问题是，你没法对权限做更详细的限制，例如你对供应商都赋予查看合同的权限，但是不同的供应商只能查看自己的合同，这在数据库层面是难以表示的。当然，你也可以在controller里面加入限制，但这就是将权限控制的逻辑分散开了，其实完全可以将他们集中写到一个文件中。将Resources变成一张伪表，将具体的权限限制写入一个叫resources.rb的文件，并将资源名称和具体权限名称释放出来。
+
+![](http://7xn1q4.com1.z0.glb.clouddn.com/gem_can_play_role_real.png)
+
 
 ## 安装方式
 
@@ -121,9 +131,9 @@ dsl文件写法如下：
 
 此处的resouce文件相当于在数据库中的resouces表，以动态的语言记录了所有的权限。我们需要通过role_resources这样的中间表，建立角色和权限之间的关联。可以在数据库建立中间表role_resources。
 
-在controller或view中只要调用 CanPlay.splat_grouped_resources_with_chinese_desc就能返回所有的权限hash，并按资源进行了分组。如果调用CanPlay.grouped_resources_with_chinese_desc则返回按module_name分组后，再按资源名称分组的权限hash。我们用这个hash在表单中呈现，让用户勾选，然后在controller中保存角色和资源权限的关联。
+在controller或view中只要调用 CanPlay.splat_grouped_resources_with_chinese_desc就能返回所有的权限hash，并按资源进行了分组。如果调用CanPlay.grouped_resources_with_chinese_desc则返回按module_name分组后，再按资源名称分组的权限hash。我们用这个hash在表单中呈现，让用户勾选，然后在controller中保存角色和资源权限的关联。
 
 
-其中roles_resources的表结构，至少要有role_id、resource_name字段，其中role_id关联角色，而 resource_name用于关联resource类（伪关联，实际不用加belongs_to这类关联）。
+其中roles_resources的表结构，至少要有role_id、resource_name字段，其中role_id关联角色，而 resource_name用于关联resource类（伪关联，实际不用加belongs_to这类关联）。
 
 有了这个关联，加载页面，就可以自动执行权限的限制了，当然前提是你在controller的每个action加入了cancancan的权限限制语句authorize！。
