@@ -59,7 +59,7 @@ locales下的can_play.zh-Cn.yml文件用于描述权限中文名称。
 ### DSL文件描述权限的方法
 &emsp;&emsp;dsl文件写法如下：
 
-	#用哪个类用来描写权限，可在intializer下的can_play.rb文件下描写。
+	# 类名，或文件名叫什么并不要紧，关键是要'include CanPlay'
 	class Resource
 	  include CanPlay
 	  self.module_name = '核心模块'
