@@ -8,7 +8,7 @@ class Ability
       can(:manage, :all) if user.send(CanPlay::Config.role_judge_method, role_name)
     end
     CanPlay::Config.role_class_name.constantize.all.each do |role|
-      next unless user.role?(role.name)
+      next unless user.send(CanPlay::Config.role_judge_method, role)
       role.send(CanPlay::Config.role_resources_relation_name).each do |role_resource|
         resource = CanPlay.find_by_name_and_code(role_resource.resource_name, CanPlay.override_code)
         next unless resource

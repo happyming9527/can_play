@@ -15,5 +15,5 @@ CanPlay::Config.setup do |config|
   config.super_roles = ['超级管理员']
 
   # 判断角色是否符合的方法。
-  config.role_judge_method = 'role?'
+  config.role_judge_method = 'role_is?'
 end
