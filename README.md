@@ -108,7 +108,7 @@ locales下的can_play.zh-Cn.yml文件用于描述权限中文名称。
   	end
   	
   	
-&emsp;&emsp;是一个用于对资源做分组的宏。group方法可以只接一个类或模型，在其后再接一个代码块，并把刚才传给group的类或模型，传给这个代码块。他是limit、collection、member方法的容器。
+&emsp;&emsp;`group`是一个用于对资源做分组的宏。group方法可以只接一个类或模型，在其后再接一个代码块，并把刚才传给group的类或模型，传给这个代码块。他是limit、collection、member方法的容器。
   	
 &emsp;&emsp;`limit`方法用于控制某个用户可以查看的资源的额列表，如Contract类下的limit限制了管理员可以查看所有合同，供应商和采购人只能查看和自己相关的合同。limit方法会让在controller中生成一个动态方法，`current_power.contracts`，这个方法返回的是是我们再limit中写如的对象，这样就能根据用户的信息返回不同的资源数组。
 
