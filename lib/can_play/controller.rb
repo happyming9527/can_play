@@ -3,7 +3,7 @@ class ActionController::Base
   current_power do
     CanPlay::Power.new(current_user)
   end
-
+  helper_method :play_resources
   # 对current_power采用动态方法调用的装饰者。
   class PlayResourceObject < BasicObject
     def initialize(obj, klass)

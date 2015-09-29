@@ -103,7 +103,7 @@ module CanPlay
       if clazz.is_a?(Module)
         name  = clazz.try(:table_name).presence || clazz.to_s.underscore.gsub('/', '_').pluralize
         group = NameImportantOpenStruct.new(name: name, klass: clazz)
-      elsif clazz.blank? &&  opts.key?(:name)
+      elsif clazz.blank? &&  opts.key?(:name) &&  opts.key?(:klass)
         opts  = opts.with_indifferent_access
         group = NameImportantOpenStruct.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass))
       else
@@ -118,8 +118,15 @@ module CanPlay
     end
 
     def limit(name=nil, &block)
-      raise "Need define group first" if current_group.nil?
-      CanPlay::Power.power(name||current_group.name, &block)
+      if current_group.present?
+        CanPlay::Power.power(name||current_group.name, &block)
+      else
+        if name.present?
+          CanPlay::Power.power(name, &block)
+        else
+          raise 'limit name need set'
+        end
+      end
     end
 
     def collection(verb_or_verbs, opts={}, &block)
