@@ -3,6 +3,7 @@ class Ability
   attr_accessor :user
 
   def initialize(user)
+    clear_aliased_actions
     CanPlay::Config.tap do |i|
       self.user = user||i.user_class_name.constantize.new
       if i.super_roles.is_a?(Array)
