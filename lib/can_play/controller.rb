@@ -1,9 +1,20 @@
 class ActionController::Base
   include Consul::Controller
   current_power do
-    CanPlay::Power.new(current_user)
+    CanPlay::Power.new
   end
   helper_method :play_resources
+
+  before_action do
+    can_play_instance = CanPlay::OnlyInstance.new(user: current_user)
+    current_ability.instance_variable_set(:@can_play_instance, can_play_instance)
+    current_power.instance_variable_set(:@can_play_instance, can_play_instance)
+  end
+
+  after_action do
+    CanPlay.only_instance = nil
+  end
+
   # 对current_power采用动态方法调用的装饰者。
   class PlayResourceObject < BasicObject
     def initialize(obj, klass)

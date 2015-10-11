@@ -1,11 +1,10 @@
 class Ability
   include CanCan::Ability
-  attr_accessor :user
 
   def initialize(user)
     clear_aliased_actions
     CanPlay::Config.tap do |i|
-      self.user = user||i.user_class_name.constantize.new
+      user = user||i.user_class_name.constantize.new
       if i.super_roles.is_a?(Array)
         i.super_roles.each do |role_name|
           can(:manage, :all) if user.send(i.role_judge_method, role_name)
@@ -21,7 +20,7 @@ class Ability
           if resource[:type] == 'collection'
             if resource[:behavior]
               block = resource[:behavior]
-              can(resource[:verb], resource[:object]) if block.call(user)
+              can(resource[:verb], resource[:object]) if block.call
             else
               can resource[:verb], resource[:object]
             end
@@ -29,7 +28,7 @@ class Ability
             if resource[:behavior]
               block = resource[:behavior]
               can resource[:verb], resource[:object] do |object|
-                block.call(user, object)
+                block.call(object)
               end
             else
               can resource[:verb], resource[:object]
