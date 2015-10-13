@@ -39,7 +39,7 @@ module CanPlay
   end
 
   def splat_grouped_resources(&block)
-    conjunct_resources(&block).group_by(:group)
+    conjunct_resources(&block).group_by(&:group)
   end
 
   def grouped_resources_with_chinese_desc(&block)
@@ -79,5 +79,6 @@ end
 
 require 'can_play/resource'
 require 'can_play/power'
+require 'can_play/play_resource_object'
 require 'can_play/controller'
 require 'can_play/ability'
