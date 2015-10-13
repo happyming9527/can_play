@@ -2,19 +2,14 @@ require 'ror_hack'
 require 'consul'
 require 'cancancan'
 require 'modularity'
-require 'can_play/only_instance'
 require 'can_play/config'
-require 'can_play/override'
 require 'can_play/class_method'
-require 'can_play/power'
-require 'can_play/controller'
-require 'can_play/ability'
-require 'can_play/resource'
+
 
 module CanPlay
 
   singleton_attr_accessor :resources, :override_resources,
-                          :override_code, :groups, :module_name
+                          :override_code, :groups
 
   self.resources          = []
   self.override_resources = {}.with_indifferent_access
@@ -40,11 +35,11 @@ module CanPlay
   end
 
   def grouped_resources(&block)
-    conjunct_resources(&block).multi_group_by(:module_name, :group)
+    conjunct_resources(&block).multi_group_by(:my_module_name, :group)
   end
 
   def splat_grouped_resources(&block)
-    conjunct_resources(&block).multi_group_by(:group)
+    conjunct_resources(&block).group_by(:group)
   end
 
   def grouped_resources_with_chinese_desc(&block)
@@ -82,3 +77,7 @@ module CanPlay
   end
 end
 
+require 'can_play/resource'
+require 'can_play/power'
+require 'can_play/controller'
+require 'can_play/ability'

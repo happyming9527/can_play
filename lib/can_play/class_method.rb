@@ -1,22 +1,25 @@
 module CanPlay
+
+  class ResourcePermission < OpenStruct
+  end
+
+  class NameImportantGroup < OpenStruct
+    def eql?(another)
+      self.name == another.name
+    end
+  end
+
   module ClassMethods
 
-    class NameImportantOpenStruct < OpenStruct
-      def eql?(another)
-        self.name == another.name
-      end
-    end
-
-    # 为每个 resource 添加一个 group, 方便管理
     def group(*args, &block)
       opts = args.extract_options!.with_indifferent_access
       clazz = args.first
       if clazz.is_a?(Module)
         name  = clazz.try(:table_name).presence || clazz.to_s.underscore.gsub('/', '_').pluralize
-        group = NameImportantOpenStruct.new(name: name, klass: clazz, defined_class_wrapper: self)
+        group = NameImportantGroup.new(name: name, klass: clazz, defined_class_wrapper: self)
       elsif clazz.blank? &&  opts.key?(:name) &&  opts.key?(:klass)
         opts  = opts.with_indifferent_access
-        group = NameImportantOpenStruct.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass), defined_class_wrapper: self)
+        group = NameImportantGroup.new(name: opts.delete(:name).to_s, klass: opts.delete(:klass), defined_class_wrapper: self)
       else
         raise "group klass need set"
       end
@@ -33,9 +36,9 @@ module CanPlay
     end
 
     def limit(name=nil, &block)
-
+      clazz = self
       wrap_block = Proc.new do |*args|
-        current_group.defined_class_wrapper::OnlyInstance.only.instance_exec(*args, &block)
+        clazz::OnlyInstance.only.instance_exec(*args, &block)
       end
 
       CanPlay::Power.power(name||current_group.name, &wrap_block)
@@ -47,9 +50,11 @@ module CanPlay
       opts = OpenStruct.new opts
       group    = current_group
       behavior = nil
+      clazz = self
       if block
         behavior = Proc.new do
-          current_group.defined_class_wrapper::OnlyInstance.only.instance_eval(&block)
+          result = clazz::OnlyInstance.only.instance_eval(&block)
+          result
         end
       end
 
@@ -67,9 +72,10 @@ module CanPlay
       opts = OpenStruct.new opts
       group    = current_group
       behavior = nil
+      clazz = self
       if block
         behavior = Proc.new do |obj|
-          current_group.defined_class_wrapper::OnlyInstance.only.instance_exec(obj, &block)
+          clazz::OnlyInstance.only.instance_exec(obj, &block)
         end
       end
 
@@ -84,8 +90,8 @@ module CanPlay
 
     def add_resource(group, verb, object, type, behavior, opts)
       name     = "#{verb}_#{group.name}"
-      resource = OpenStruct.new(
-        module_name: module_name,
+      resource = ResourcePermission.new(
+        my_module_name: my_module_name,
         name:        name,
         group:       group,
         verb:        verb,
