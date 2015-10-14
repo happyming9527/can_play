@@ -38,7 +38,7 @@ module CanPlay
     def limit(name=nil, &block)
       clazz = self
       wrap_block = Proc.new do |*args|
-        clazz::OnlyInstance.only.instance_exec(*args, &block)
+        AbstractResource.only_instance_classes[clazz].only.instance_exec(*args, &block)
       end
 
       CanPlay::Power.power(name||current_group.name, &wrap_block)
@@ -53,8 +53,7 @@ module CanPlay
       clazz = self
       if block
         behavior = Proc.new do
-          result = clazz::OnlyInstance.only.instance_eval(&block)
-          result
+          AbstractResource.only_instance_classes[clazz].only.instance_eval(&block)
         end
       end
 
@@ -75,7 +74,7 @@ module CanPlay
       clazz = self
       if block
         behavior = Proc.new do |obj|
-          clazz::OnlyInstance.only.instance_exec(obj, &block)
+          AbstractResource.only_instance_classes[clazz].only.instance_exec(obj, &block)
         end
       end
 

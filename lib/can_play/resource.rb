@@ -3,30 +3,27 @@ module CanPlay
 
     include RorHack::ClassLevelInheritableAttributes
     extend CanPlay::ClassMethods
+    singleton_attr_accessor :new_opts, :clear_only_instances
+    self.new_opts = {}
+    self.clear_only_instances = -> do
+      self.only_instance_classes.values.each do |i|
+        i.only = nil
+      end
+    end
     inheritable_attributes :my_module_name
     self.my_module_name = 'other'
+    mattr_accessor :only_instance_classes
+    self.only_instance_classes = {}
 
-    def self.set_module_name(str)
-      self.my_module_name = str
-    end
-
-    def self.set_method(name, &block)
-      self::OnlyInstance.after_initialize_block_array << Proc.new do
-        define_singleton_method name, &block
-      end
-    end
-
-    def self.inherited(base)
-      super
-      base.class_eval do
-        # 定义动态类。
-        base.const_set "OnlyInstance", Class.new(self::OnlyInstance)
-      end
-    end
-
-    class OnlyInstance
+    # define anonymous class and save in a class variable
+    only_instance_classes[self] = Class.new do
 
       singleton_attr_accessor :after_initialize_block_array, :only_you, :instance
+      attr_accessor :pseudo_name
+
+      def self.my_parent_scope_class
+        CanPlay::AbstractResource.only_instance_modules_invert[self]
+      end
 
       def initialize(opts)
         @user               = opts[:user] if opts[:user]
@@ -38,15 +35,20 @@ module CanPlay
         o = allocate
         o.instance_eval { initialize(opts) }
         after_initialize_block_array.each do |block|
-          o.instance_exec(opts[:user], &block)
+          next unless block
+          if self == AbstractResource.only_instance_classes[AbstractResource]
+            o.instance_exec(opts, &block)
+          else
+            o.instance_exec(CanPlay::AbstractResource.new_opts, &block)
+          end
         end
         o
       end
 
       def self.only
         if only_you.blank?
-          if self == CanPlay::AbstractResource::OnlyInstance
-            raise 'CanPlay::Resource::OnlyInstance not set first instance'
+          if self == AbstractResource.only_instance_classes[AbstractResource]
+            raise 'CanPlay::Resource only_instance not set first instance'
           else
             self.only_you = new(instance: superclass.only)
           end
@@ -65,9 +67,9 @@ module CanPlay
 
       def klass
         @klass ||= begin
-          clazz_string = self.class.parent.name
+          clazz_string = AbstractResource.only_instance_modules_invert[self.class].name
           raise 'class name error' unless clazz_string.end_with?('Resource') || clazz_string.end_with?('ResourceOverride')
-          clazz_name = self.class.parent.name.gsub(/Resource$/, '').gsub(/ResourceOverride$/, '')
+          clazz_name = clazz_string.gsub(/Resource$/, '').gsub(/ResourceOverride$/, '')
           klass = clazz_name.constantize rescue nil
           klass
         end
@@ -80,8 +82,8 @@ module CanPlay
         super(method, *args, &block)
       end
 
-      self.after_initialize_block_array << Proc.new do |user|
-
+      self.after_initialize_block_array << Proc.new do |opts|
+        user = opts[:user]
         define_singleton_method :user do
           user
         end
@@ -89,6 +91,33 @@ module CanPlay
       end
 
       alias_method :set_method, :define_singleton_method
+
+    end
+
+    def self.only_instance_modules_invert
+      self.only_instance_classes.invert
+    end
+
+    def self.set_module_name(str)
+      self.my_module_name = str
+    end
+
+    def self.before_set(&block)
+      AbstractResource.only_instance_classes[self].after_initialize_block_array << block
+    end
+
+    def self.set_method(name, &block)
+      AbstractResource.only_instance_classes[self].after_initialize_block_array << Proc.new do
+        define_singleton_method name, &block
+      end
+    end
+
+    def self.inherited(base)
+      super
+      clazz = self
+      base.class_eval do
+        AbstractResource.only_instance_classes[base] = Class.new(AbstractResource.only_instance_classes[clazz])
+      end
     end
 
   end
@@ -153,7 +182,7 @@ module CanPlay
     def self.limit(name=nil, &block)
       clazz = self
       wrap_block = Proc.new do |*args|
-        clazz::OnlyInstance.only.instance_exec(*args, &block)
+        AbstractResource.only_instance_classes[clazz].only.instance_exec(*args, &block)
       end
       method_name = name ? "#{name}_evaluate_in_#{code}_scope" : "#{current_group.name}_evaluate_in_#{self.uniq_override_code}_scope"
 
