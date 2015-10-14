@@ -184,7 +184,7 @@ module CanPlay
       wrap_block = Proc.new do |*args|
         AbstractResource.only_instance_classes[clazz].only.instance_exec(*args, &block)
       end
-      method_name = name ? "#{name}_evaluate_in_#{code}_scope" : "#{current_group.name}_evaluate_in_#{self.uniq_override_code}_scope"
+      method_name = "#{name||current_group.name}_evaluate_in_#{self.uniq_override_code}_scope"
 
       CanPlay::Power.power(method_name, &wrap_block)
     end

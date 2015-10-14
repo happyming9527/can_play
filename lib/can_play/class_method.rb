@@ -15,7 +15,7 @@ module CanPlay
       opts = args.extract_options!.with_indifferent_access
       clazz = args.first
       if clazz.is_a?(Module)
-        name  = clazz.try(:table_name).presence || clazz.to_s.underscore.gsub('/', '_').pluralize
+        name  = clazz.to_s.underscore.gsub('/', '_').pluralize
         group = NameImportantGroup.new(name: name, klass: clazz, defined_class_wrapper: self)
       elsif clazz.blank? &&  opts.key?(:name) &&  opts.key?(:klass)
         opts  = opts.with_indifferent_access
@@ -40,7 +40,8 @@ module CanPlay
       wrap_block = Proc.new do |*args|
         AbstractResource.only_instance_classes[clazz].only.instance_exec(*args, &block)
       end
-
+      name ||= current_group.try(:name)
+      raise "Need define group or set limit name first" if name.nil?
       CanPlay::Power.power(name||current_group.name, &wrap_block)
     end
 
