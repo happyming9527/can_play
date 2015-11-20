@@ -1,7 +1,6 @@
 require 'ror_hack'
 require 'consul'
 require 'cancancan'
-require 'modularity'
 require 'can_play/config'
 require 'can_play/class_method'
 require 'can_play/railtie'

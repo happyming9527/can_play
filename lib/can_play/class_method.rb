@@ -38,7 +38,7 @@ module CanPlay
     def limit(name=nil, &block)
       clazz = self
       wrap_block = Proc.new do |*args|
-        AbstractResource.only_instance_classes[clazz].only.instance_exec(*args, &block)
+        clazz.my_only_instance_class.only.instance_exec(*args, &block)
       end
       name ||= current_group.try(:name)
       raise "Need define group or set limit name first" if name.nil?
@@ -54,7 +54,7 @@ module CanPlay
       clazz = self
       if block
         behavior = Proc.new do
-          AbstractResource.only_instance_classes[clazz].only.instance_eval(&block)
+          clazz.my_only_instance_class.only.instance_eval(&block)
         end
       end
 
@@ -75,7 +75,7 @@ module CanPlay
       clazz = self
       if block
         behavior = Proc.new do |obj|
-          AbstractResource.only_instance_classes[clazz].only.instance_exec(obj, &block)
+          clazz.my_only_instance_class.only.instance_exec(obj, &block)
         end
       end
 

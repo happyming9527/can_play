@@ -12,7 +12,7 @@ class ActionController::Base
   def set_can_play(opts = {}.with_indifferent_access)
     CanPlay.override_code = opts.delete(:override_code)
     raise 'user not set' unless opts[:user]
-    can_play_instance = CanPlay::AbstractResource.only_instance_classes[CanPlay::AbstractResource].new(opts)
+    can_play_instance = CanPlay::AbstractResource.my_only_instance_class.new(opts)
     CanPlay::AbstractResource.new_opts = opts.tap do |i|
       i.delete(:user)
     end.freeze
